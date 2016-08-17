@@ -37,4 +37,46 @@ GPUImage使用OpenGL ES 2.0着色器去完成图像和视频的处理远远超�
 例如，一个应用从摄像机中获取视频流，再把视频转化为棕色色调，然后展现视频到屏幕上，这个过程将会建立一个反应链，这个反应链看起来是这样的
 >GPUImageVideoCamera -> GPUImageSepiaFilter -> GPUImageView
 
+##Adding the static library to your iOS project(添加静态库到你的iOS工程)/*2016.8.17*/
+备注：如果你像把这个库使用到一个采用Swift语言开发的工程中，你需要按照"Adding this as a framework(添加一个框架)"中的步骤。Swift需要第三方模块的代码。<br/>
+<br/>
+Once you have the latest source code for the framework, it's fairly straightforward to add it to your application. Start by dragging the GPUImage.xcodeproj file into your application's Xcode project to embed the framework in your project. Next, go to your application's target and add GPUImage as a Target Dependency. Finally, you'll want to drag the libGPUImage.a library from the GPUImage framework's Products folder to the Link Binary With Libraries build phase in your application's target.(你将很方便的使用最新的框架到你的工程中)。<br/>
+<br/>
+GPUImage需要在你的工程中使用一些其他的框架，所以你需要按照下表来添加库到你的目标应用中：
+- CoreMedia
+- CoreVideo
+- OpenGLES
+- AVFoundation
+- QuartzCore
+
+你还将需要找到这些框架的头文件，所以在项目的生成设置内将标题搜索路径设置为从应用程序到GPUImage源目录中的框架/目录的相对路径。让这头递归搜索路径。<br/>
+<br/>使用GPUImage类在你的应用里边，只是在核心的代码类中使用以下的头文件：
+>*#*import "GPUImage.h"
+
+备注：如果你运行时遇到"Unknown class GPUImageView in Interface Builder"的错误，或者the like when trying to build an interface with Interface Builder(不能理解)，你可能需要在project's build settings中的Other Linker Flags中添加-ObjC。<br/>
+<br/>
+还有，如果你需要部署到iOS 4.x，it appears that the current version of Xcode (4.3) requires that you weak-link the Core Video framework in your final application or you see crashes with the message "Symbol not found: _CVOpenGLESTextureCacheCreate" when you create an archive for upload to the App Store or for ad hoc distribution. To do this, go to your project's Build Phases tab, expand the Link Binary With Libraries group, and find CoreVideo.framework in the list. Change the setting for it in the far right of the list from Required to Optional.(一些解决方案)<br/>
+<br/>
+Additionally, this is an ARC-enabled framework, so if you want to use this within a manual reference counted application targeting iOS 4.x, you'll need to add -fobjc-arc to your Other Linker Flags as well.(这个也是)<br/>
+<br/>
+###Building a static library at the command line(使用命令行来建立一个静态库)
+If you don't want to include the project as a dependency in your application's Xcode project, you can build a universal static library for the iOS Simulator or device. To do this, run build.sh at the command line. The resulting library and header files will be located at build/Release-iphone. You may also change the version of the iOS SDK by changing the IOSSDK_VER variable in build.sh (all available versions can be found using xcodebuild -showsdks).(我觉得目前没必要)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
