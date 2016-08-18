@@ -62,7 +62,17 @@ Additionally, this is an ARC-enabled framework, so if you want to use this withi
 ###Building a static library at the command line(使用命令行来建立一个静态库)
 If you don't want to include the project as a dependency in your application's Xcode project, you can build a universal static library for the iOS Simulator or device. To do this, run build.sh at the command line. The resulting library and header files will be located at build/Release-iphone. You may also change the version of the iOS SDK by changing the IOSSDK_VER variable in build.sh (all available versions can be found using xcodebuild -showsdks).(我觉得目前没必要)
 
+##Adding this as a framework (module) to your Mac or iOS project(添加这个框架(模块)到你的Mac或者iOS工程)/*2016.8.18*/
+Xcode 6和iOS 8支持去使用完整的框架，Mac也一样，这样将简化添加此框架到你的应用的过程。添加此框架到你的应用，我推荐把.xcodeproj后缀的工程文件拖拽到你的应用的项目中(就像你使用静态链接库一样)(自己生成GPUImage.Framework)<br>
+<br>
+在你的应用工程中，去到它的target build settings和选择Build Phases tab。在Target Dependencies grouping下，给iOS添加GPUImageFramework(不是GPUImage，构建那个静态链接库)或者给Mac添加GPUImage。在Link Binary With Libraries选项，添加GPUImage.framework。<br>
+<br>
+这样应该使得GPUImage 建立成了一个框架。在Xcode 6下，这将构建一个模块，并可以让你在Swift开发的项目下使用了。当你完成上面的设置，你应该只需要使用：
+>import GPUImage
 
+去调用它<br>
+<br>
+在Build Phases里，添加一个新的Copy Files，Destination选Frameworks，和添加GPUImage.framework进来。这样就可以在你的应用中使用这个框架了.
 
 
 
