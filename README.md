@@ -75,7 +75,88 @@ Xcode 6和iOS 8支持去使用完整的框架，Mac也一样，这样将简化�
 在Build Phases里，添加一个新的Copy Files，Destination选Frameworks，和添加GPUImage.framework进来。这样就可以在你的应用中使用这个框架了.
 
 
+##Performing common tasks(执行常见的任务)/*2016.8.22*/
+###过滤实时视频
+想在iOS设备的摄像机中对实时的视频流进行处理，你能够使用下面的代码：
+```objectivec
+GPUImageVideoCamera *videoCamera = [[GPUImageVideoCamera alloc] initWithSessionPreset:AVCaptureSessionPreset640x480 cameraPosition:AVCaptureDevicePositionBack];<br>
+videoCamera.outputImageOrientation = UIInterfaceOrientationPortrait;
 
+GPUImageFilter *customFilter = [[GPUImageFilter alloc] initWithFragmentShaderFromFile:@"CustomShader"];<br>
+GPUImageView *filteredVideoView = [[GPUImageView alloc] initWithFrame:CGRectMake(0.0, 0.0, viewWidth, viewHeight)];
+
+// Add the view somewhere so it's visible
+
+[videoCamera addTarget:customFilter];<br>
+[customFilter addTarget:filteredVideoView];
+
+[videoCamera startCameraCapture];
+```
+这个是设置视频的源从iOS设备的后摄像头中的到，并设置捕获的视频为640x480.设置视频捕获的接口为得到纵向视频，where the landscape-left-mounted camera needs to have its video frames rotated before display.(暂时不懂)。一个自定义滤镜，使用CustomShader.fsh文件中的代码，然后设置从摄像机中获取视频帧到目标。这些被使用滤镜的视频帧最后展现在屏幕，with the help of a UIView subclass that can present the filtered OpenGL ES texture that results from this pipeline.(。。。。。。)。<br>
+<br>
+GPUImage中的填充模式能够通过设置填充模式去改变，所以如果源视频的横纵比与View的横纵比不相同，这个视频将会被拉长，中间有黑条，或通过缩放来填充<br>
+<br>
+对于混合滤镜和其他多个图片，你可以创建多个输出和添加一个单独的滤镜，作为这两个输出的目标。The order with which the outputs are added as targets will affect the order in which the input images are blended or otherwise processed.<br>
+<br>
+还有，如果你希望能够使用麦克风去获取声音道电影中，你将需要去设置audioEncodingTarget，像下面那样做：
+>videoCamera.audioEncodingTarget = movieWriter;
+
+###Capturing and filtering a still photo(获取和过滤一张静止的照片)
+去获取和过滤静态的照片，你可以使用在处理视频时的类似过程。使用GPUImageStillCamera去代替GPUImageVideoCamera：
+```objectivec
+stillCamera = [[GPUImageStillCamera alloc] init];
+stillCamera.outputImageOrientation = UIInterfaceOrientationPortrait;
+
+filter = [[GPUImageGammaFilter alloc] init];
+[stillCamera addTarget:filter];
+GPUImageView *filterView = (GPUImageView *)self.view;
+[filter addTarget:filterView];
+
+[stillCamera startCameraCapture];
+```
+This will give you a live, filtered feed of the still camera's preview video. Note that this preview video is only provided on iOS 4.3 and higher, so you may need to set that as your deployment target if you wish to have this functionality.<br>
+<br>
+如果你想获取一张照片，你可以使用下列的回调方法：
+```objectivec
+[stillCamera capturePhotoProcessedUpToFilter:filter withCompletionHandler:^(UIImage *processedImage, NSError *error){
+    NSData *dataForJPEGFile = UIImageJPEGRepresentation(processedImage, 0.8);
+
+    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+    NSString *documentsDirectory = [paths objectAtIndex:0];
+
+    NSError *error2 = nil;
+    if (![dataForJPEGFile writeToFile:[documentsDirectory stringByAppendingPathComponent:@"FilteredPhoto.jpg"] options:NSAtomicWrite error:&error2])
+    {
+        return;
+    }
+}];
+```
+上面的代码能获得一个满尺寸的且被处理过的照片，分别呈现在一个view上以及以JPEG格式保存在你应用的文件目录下。<br>
+<br>
+请注意，在一些老的设备中，该框架现在不能处理宽或高大于2048像素，因为纹理限制(Phone 4S, iPad 2, Retina iPad)。This means that the iPhone 4, whose camera outputs still photos larger than this, won't be able to capture photos like this. A tiling mechanism is being implemented to work around this. All other devices should be able to capture and filter photos using this method.<br>
+<br>
+###Processing a still image(处理一张静态图片)
+这里有两种方法去处理一张静态图片和创建一个结果。第一种方法是你去创建一个静态图片源对象，和手动创建一个滤镜链：
+```objectivec
+UIImage *inputImage = [UIImage imageNamed:@"Lambeau.jpg"];
+
+GPUImagePicture *stillImageSource = [[GPUImagePicture alloc] initWithImage:inputImage];
+GPUImageSepiaFilter *stillImageFilter = [[GPUImageSepiaFilter alloc] init];
+
+[stillImageSource addTarget:stillImageFilter];
+[stillImageFilter useNextFrameForImageCapture];
+[stillImageSource processImage];
+
+UIImage *currentFilteredVideoFrame = [stillImageFilter imageFromCurrentFramebuffer];
+```
+请注意，对于从过滤器中手动获取图片，你需要去设置-useNextFrameForImageCapture，为了告诉过滤器你将在之后去获取一张图片。默认的，GPUImage
+在过滤器中重复使用帧缓冲器用来节约内存，所以你需要时时让它知道你要去获取它<br>
+<br>
+对于在只单单在图片上使用过滤器，你可以这样简单的使用：
+```objectivec
+GPUImageSepiaFilter *stillImageFilter2 = [[GPUImageSepiaFilter alloc] init];
+UIImage *quickFilteredImage = [stillImageFilter2 imageByFilteringImage:inputImage];
+```
 
 
 
