@@ -157,6 +157,44 @@ UIImage *currentFilteredVideoFrame = [stillImageFilter imageFromCurrentFramebuff
 GPUImageSepiaFilter *stillImageFilter2 = [[GPUImageSepiaFilter alloc] init];
 UIImage *quickFilteredImage = [stillImageFilter2 imageByFilteringImage:inputImage];
 ```
+###Writing a custom filter(编写一个自定义的滤镜)
+在iOS上，这个框架对于CoreImage来说有一个重要的优势，那就是你可以自己去编写一个属于你自己的滤镜去处理图片和视频。These filters are supplied as OpenGL ES 2.0 fragment shaders, written in the C-like OpenGL Shading Language.(......)<br>
+<br>
+一个自定义的滤镜的使用下面的代码进行初始化：<br>
+```objectivec
+GPUImageFilter *customFilter = [[GPUImageFilter alloc] initWithFragmentShaderFromFile:@"CustomShader"];
+```
+where the extension used for the fragment shader is .fsh.(......)。此外，你可以使用-initWithFragmentShaderFromString：把片段着色器作为一个字符串提供给初始化程序，如果你不想把片段着色器搬运到你的应用项目中。<br>
+<br>
+片段着色器在过滤的阶段执行，它们计算每一个像素用来进行渲染。它们使用OpenGL Shading语言(GLSL)，一个内置的用来添加特定的2D和3D图形。下面一个列子使用一个片段着色器去完成一个棕褐色的滤镜：<br>
+<br>
+```c
+varying highp vec2 textureCoordinate;
+
+uniform sampler2D inputImageTexture;
+
+void main()
+{
+    lowp vec4 textureColor = texture2D(inputImageTexture, textureCoordinate);
+    lowp vec4 outputColor;
+    outputColor.r = (textureColor.r * 0.393) + (textureColor.g * 0.769) + (textureColor.b * 0.189);
+    outputColor.g = (textureColor.r * 0.349) + (textureColor.g * 0.686) + (textureColor.b * 0.168);    
+    outputColor.b = (textureColor.r * 0.272) + (textureColor.g * 0.534) + (textureColor.b * 0.131);
+    outputColor.a = 1.0;
+
+    gl_FragColor = outputColor;
+}
+
+```
+For an image filter to be usable within the GPUImage framework, the first two lines that take in the textureCoordinate varying (for the current coordinate within the texture, normalized to 1.0) and the inputImageTexture uniform (for the actual input image frame texture) are required.<br>
+<br>
+The remainder of the shader grabs the color of the pixel at this location in the passed-in texture, manipulates it in such a way as to produce a sepia tone, and writes that pixel color out to be used in the next stage of the processing pipeline.<br>
+<br>
+One thing to note when adding fragment shaders to your Xcode project is that Xcode thinks they are source code files. To work around this, you'll need to manually move your shader from the Compile Sources build phase to the Copy Bundle Resources one in order to get the shader to be included in your application bundle.(......).<br>
+<br>
+
+###Filtering and re-encoding a movie(过滤和重编码一个电影)
+电影
 
 
 
