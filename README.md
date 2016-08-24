@@ -157,7 +157,7 @@ UIImage *currentFilteredVideoFrame = [stillImageFilter imageFromCurrentFramebuff
 GPUImageSepiaFilter *stillImageFilter2 = [[GPUImageSepiaFilter alloc] init];
 UIImage *quickFilteredImage = [stillImageFilter2 imageByFilteringImage:inputImage];
 ```
-###Writing a custom filter(编写一个自定义的滤镜)
+###Writing a custom filter(编写一个自定义的滤镜)/*2016-8-24*/
 在iOS上，这个框架对于CoreImage来说有一个重要的优势，那就是你可以自己去编写一个属于你自己的滤镜去处理图片和视频。These filters are supplied as OpenGL ES 2.0 fragment shaders, written in the C-like OpenGL Shading Language.(......)<br>
 <br>
 一个自定义的滤镜的使用下面的代码进行初始化：<br>
@@ -194,9 +194,62 @@ One thing to note when adding fragment shaders to your Xcode project is that Xco
 <br>
 
 ###Filtering and re-encoding a movie(过滤和重编码一个电影)
-电影
+电影通过该框架的GPUImageMovie类的通道来加载，被过滤，和使用GPUImageMovieWriter来写入。GPUImageMovieWriter也是一个足够快速的去记录实时的视频在iPhone 4's camera at 640x480下，所以一个直接过滤的视频源能够直接的输入。现在，在iPhone4上，GPUImageMovieWriter有足够快的速度去记录720p的直播视频，且帧数高达20 FPS。而在iPhone4s上可以达到30FPS。<br>
+<br>
+按照下面的例子，加载一个简单的电影，并使用像素化滤镜去处理该电影，并把处理后的电影(480x640)保存在硬盘中：
+```objectivec
+movieFile = [[GPUImageMovie alloc] initWithURL:sampleURL];
+pixellateFilter = [[GPUImagePixellateFilter alloc] init];
 
+[movieFile addTarget:pixellateFilter];
 
+NSString *pathToMovie = [NSHomeDirectory() stringByAppendingPathComponent:@"Documents/Movie.m4v"];
+unlink([pathToMovie UTF8String]);
+NSURL *movieURL = [NSURL fileURLWithPath:pathToMovie];
+
+movieWriter = [[GPUImageMovieWriter alloc] initWithMovieURL:movieURL size:CGSizeMake(480.0, 640.0)];
+[pixellateFilter addTarget:movieWriter];
+
+movieWriter.shouldPassthroughAudio = YES;
+movieFile.audioEncodingTarget = movieWriter;
+[movieFile enableSynchronizedEncodingUsingMovieWriter:movieWriter];
+
+[movieWriter startRecording];
+[movieFile startProcessing];
+```
+当录像结束后，你应该记得去移除电影的记录者(movieWriter)，和关闭记录者，就像下面一样：
+```objectivec
+[pixellateFilter removeTarget:movieWriter];
+[movieWriter finishRecording];
+```
+A movie won't be usable until it has been finished off, so if this is interrupted before this point, the recording will be lost.(......)
+
+###Interacting with OpenGL ES(与OpenGL ES的相互关系)
+GPUImage can both export and import textures from OpenGL ES through the use of its GPUImageTextureOutput and GPUImageTextureInput classes, respectively. This lets you record a movie from an OpenGL ES scene that is rendered to a framebuffer object with a bound texture, or filter video or images and then feed them into OpenGL ES as a texture to be displayed in the scene.<br>
+<br>
+The one caution with this approach is that the textures used in these processes must be shared between GPUImage's OpenGL ES context and any other context via a share group or something similar.
+
+##Built-in filters(自带的滤镜)
+该框架现在总共有125个自带的滤镜，分为一下几类：
+###Color adjustments(颜色调节器)
+- **GPUImageBrightnessFilter**： 调节图像的明亮度。
+ + 明亮度: 调整 brightness (-1.0 - 1.0, with 0.0 as the default)
+- **GPUImageExposureFilter**： 调节图像的曝光率。
+ + 曝光率: 调整 exposure (-10.0 - 10.0, with 0.0 as the default)
+- **GPUImageContrastFilter**： 调节图像的对比度。
+ + 对比度: 调整 contrast (0.0 - 4.0, with 1.0 as the default)
+- **GPUImageSaturationFilter**： 调节图像的饱和度。
+- **GPUImageGammaFilter**： 调节图像的灰度系数。
+- **GPUImageLevelsFilter**：就像Photoshop里边的等级调整。它里边的min，max，minOut，maxOut这四个值的取值范围是在[0，1].如果你在Photoshop的界面上看到的取值范围是[0，255]，你必须去转变它们到[0，1]。在gamma/mid参数是一个大于等于零的浮点数。从Photoshop中的值进行匹配。If you want to apply levels to RGB as well as individual channels you need to use this filter twice - first for the individual channels and then for all channels.(......)
+- **GPUImageColorMatrixFilter**：通过一个矩阵来转变图像的颜色。
+- **GPUImageRGBFilter**：调整图像中RGB三个值得其中一个通道。(Normalized values by which each color channel is multiplied. The range is from 0.0 up, with 1.0 as the default.)
+- **GPUImageHueFilter**：调整图像的色调。
+- **GPUImageVibranceFilter**：调节图像的自然饱和度。
+- **GPUImageWhiteBalanceFilter**：调节图像的白平衡。
+- **GPUImageToneCurveFilter**：调整基于样条曲线为每个颜色通道图像的颜色。
+- **GPUImageHighlightShadowFilter**：调节图像的阴影和高光。
+- **GPUImageHighlightShadowTintFilter**：允许你独立的去给图片的阴影和高光添加颜色。
+- 
 
 
 
